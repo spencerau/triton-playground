@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Triton interpret (current file)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "env": {
+        "TRITON_INTERPRET": "1",
+        "HIP_VISIBLE_DEVICES": "0"
+      }
+    }
+  ]
+}
