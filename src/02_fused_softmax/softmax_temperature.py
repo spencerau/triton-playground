@@ -55,7 +55,7 @@ def softmax_kernel(output_ptr, input_ptr,
 
         # NOTE: exponentiation in Triton is fast but aproximate (like think __expf in CUDA)
         numerator = tl.exp(row_minus_max / temperature)
-        denominator = tl.sum(numerator / temperature, axis=0)
+        denominator = tl.sum(numerator, axis=0)
         softmax_output = numerator / denominator
 
         # write output to DRAM
@@ -105,7 +105,7 @@ def softmax_temp(x, temperature):
     kernel._init_handles()
     n_regs = kernel.n_regs
     size_smem = kernel.metadata.shared
-    print("Block Size:", BLOCK_SIZE, "; Size SMEM:", size_smem)
+    # print("Block Size:", BLOCK_SIZE, "; Size SMEM:", size_smem)
 
     if is_hip():
         # NUM_REGS represents the number of regular purpose registers. On CDNA architectures this is half of all registers available.
@@ -127,7 +127,10 @@ def softmax_temp(x, temperature):
     else:
         occupancy = NUM_REGS // (n_regs * WARP_SIZE * num_warps)
 
-    occupancy = min(occupancy, SIZE_SMEM // size_smem)
+    # limit occupancy by shared memory size
+    if (size_smem > 0):
+        occupancy = min(occupancy, SIZE_SMEM // size_smem)
+    # else use register basd value
 
     num_programs = NUM_SM * occupancy
     num_programs = min(num_programs, n_rows)
@@ -135,7 +138,9 @@ def softmax_temp(x, temperature):
     # create a number of persistent programs
     kernel[(num_programs, 1, 1)](y, x, 
                                  x.stride(0), y.stride(0),
+                                 x.stride(1), y.stride(1),
                                  n_rows, n_cols,
+                                 temperature,
                                  BLOCK_SIZE,
                                  num_stages)
 
